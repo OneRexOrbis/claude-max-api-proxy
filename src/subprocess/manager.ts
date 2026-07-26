@@ -7,6 +7,7 @@
 
 import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
+import { readFileSync, readdirSync, statSync } from "fs";
 import fs from "fs/promises";
 import path from "path";
 import type {
@@ -43,6 +44,78 @@ export interface SubprocessEvents {
 }
 
 const DEFAULT_TIMEOUT = 900000; // 15 minutes
+const CLAUDE_HOST_AUTH_KEYS = new Set([
+  "ANTHROPIC_BASE_URL",
+  "CLAUDE_CODE_OAUTH_SCOPES",
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "CLAUDE_CODE_RATE_LIMIT_TIER",
+  "CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH",
+  "CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH",
+  "CLAUDE_CODE_SUBSCRIPTION_TYPE",
+  "USE_LOCAL_OAUTH",
+  "USE_STAGING_OAUTH",
+]);
+
+/**
+ * Read the current Claude Teams host-auth context from a same-user Claude
+ * process. The desktop app refreshes this token; static credential files do
+ * not. Values are never logged and are passed only to the spawned CLI child.
+ */
+export function discoverClaudeHostAuth(
+  procRoot = process.env.CLAUDE_HOST_AUTH_PROC_ROOT || "/proc"
+): Record<string, string> {
+  if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+    return Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([key, value]) => CLAUDE_HOST_AUTH_KEYS.has(key) && Boolean(value)
+      )
+    ) as Record<string, string>;
+  }
+
+  const ownUid = typeof process.getuid === "function" ? process.getuid() : undefined;
+  let candidates: string[] = [];
+  try {
+    candidates = readdirSync(procRoot)
+      .filter((entry) => /^\d+$/.test(entry))
+      .sort((a, b) => Number(b) - Number(a));
+  } catch {
+    return {};
+  }
+
+  for (const pid of candidates) {
+    const processDir = path.join(procRoot, pid);
+    try {
+      if (ownUid !== undefined && statSync(processDir).uid !== ownUid) continue;
+      const command = readFileSync(path.join(processDir, "cmdline"), "utf8")
+        .replace(/\0/g, " ");
+      if (!command.includes("/Claude-Teams/claude-code/")) continue;
+
+      const discovered: Record<string, string> = {};
+      for (const item of readFileSync(path.join(processDir, "environ"), "utf8").split("\0")) {
+        const separator = item.indexOf("=");
+        if (separator < 1) continue;
+        const key = item.slice(0, separator);
+        const value = item.slice(separator + 1);
+        if (CLAUDE_HOST_AUTH_KEYS.has(key) && value) discovered[key] = value;
+      }
+      if (discovered.CLAUDE_CODE_OAUTH_TOKEN) return discovered;
+    } catch {
+      continue;
+    }
+  }
+  return {};
+}
+
+export function buildClaudeChildEnvironment(
+  procRoot?: string
+): NodeJS.ProcessEnv {
+  return {
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(([key]) => key !== "CLAUDECODE")
+    ),
+    ...discoverClaudeHostAuth(procRoot),
+  };
+}
 
 /**
  * System prompt appended to Claude CLI to map OpenClaw tool names to Claude Code equivalents.
@@ -105,10 +178,8 @@ export class ClaudeSubprocess extends EventEmitter {
       try {
         // Use spawn() for security - no shell interpretation
         this.process = spawn(process.env.CLAUDE_BIN || "claude", args, {
-          cwd: options.cwd || process.cwd(),
-          env: Object.fromEntries(
-            Object.entries(process.env).filter(([k]) => k !== "CLAUDECODE")
-          ),
+          cwd: options.cwd || process.env.CLAUDE_CLI_CWD || process.cwd(),
+          env: buildClaudeChildEnvironment(),
           stdio: ["pipe", "pipe", "pipe"],
         });
 
@@ -330,9 +401,9 @@ export async function verifyClaude(): Promise<{ ok: boolean; error?: string; ver
  * If the CLI is installed, it typically has valid credentials from `claude auth login`.
  */
 export async function verifyAuth(): Promise<{ ok: boolean; error?: string }> {
-  // If Claude CLI is installed and the user has run `claude auth login`,
-  // credentials are stored in the OS keychain and will be used automatically.
-  // We can't easily check the keychain, so we'll just return true if the CLI exists.
-  // Authentication errors will surface when making actual API calls.
-  return { ok: true };
+  if (discoverClaudeHostAuth().CLAUDE_CODE_OAUTH_TOKEN) return { ok: true };
+  return {
+    ok: false,
+    error: "No active Claude Teams host authentication found",
+  };
 }

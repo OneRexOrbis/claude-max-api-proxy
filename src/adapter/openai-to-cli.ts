@@ -4,7 +4,13 @@
 
 import type { OpenAIChatRequest, OpenAIContentBlock } from "../types/openai.js";
 
-export type ClaudeModel = "opus" | "sonnet" | "haiku";
+export type ClaudeModel =
+  | "claude-fable-5"
+  | "claude-opus-5"
+  | "claude-sonnet-5"
+  | "opus"
+  | "sonnet"
+  | "haiku";
 
 export interface CliInput {
   prompt: string;
@@ -15,6 +21,10 @@ export interface CliInput {
 const MODEL_MAP: Record<string, ClaudeModel> = {
   // Direct model names (provider prefixes like `claude-code-cli/` and `claude-max/`
   // are stripped by extractModel before consulting this map)
+  "claude-fable-5": "claude-fable-5",
+  "claude-opus-5": "claude-opus-5",
+  "claude-sonnet-5": "claude-sonnet-5",
+  "claude-opus-4-8": "opus",
   "claude-opus-4": "opus",
   "claude-opus-4-6": "opus",
   "claude-sonnet-4": "sonnet",
@@ -45,8 +55,7 @@ export function extractModel(model: string): ClaudeModel {
     return MODEL_MAP[stripped];
   }
 
-  // Default to opus (Claude Max subscription)
-  return "opus";
+  throw new Error(`Unsupported Claude model: ${model}`);
 }
 
 /**

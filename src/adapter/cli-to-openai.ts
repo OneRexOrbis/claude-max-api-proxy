@@ -106,13 +106,24 @@ export function cliResultToOpenai(
 }
 
 /**
- * Normalize Claude model names to a consistent format
- * e.g., "claude-sonnet-4-5-20250929" -> "claude-sonnet-4"
+ * Normalize dated Claude model names while preserving their generation.
  */
 function normalizeModelName(model: string | undefined): string {
   if (!model) return "claude-sonnet-4";
-  if (model.includes("opus")) return "claude-opus-4";
-  if (model.includes("sonnet")) return "claude-sonnet-4";
-  if (model.includes("haiku")) return "claude-haiku-4";
+  for (const known of [
+    "claude-fable-5",
+    "claude-opus-5",
+    "claude-sonnet-5",
+    "claude-opus-4-8",
+    "claude-opus-4-6",
+    "claude-opus-4",
+    "claude-sonnet-4-6",
+    "claude-sonnet-4-5",
+    "claude-sonnet-4",
+    "claude-haiku-4-5",
+    "claude-haiku-4",
+  ]) {
+    if (model.includes(known)) return known;
+  }
   return model;
 }

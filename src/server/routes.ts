@@ -55,11 +55,12 @@ export async function handleChatCompletions(
     console.error("[handleChatCompletions] Error:", message);
 
     if (!res.headersSent) {
-      res.status(500).json({
+      const unsupportedModel = message.startsWith("Unsupported Claude model:");
+      res.status(unsupportedModel ? 400 : 500).json({
         error: {
           message,
-          type: "server_error",
-          code: null,
+          type: unsupportedModel ? "invalid_request_error" : "server_error",
+          code: unsupportedModel ? "unsupported_model" : null,
         },
       });
     }
@@ -386,13 +387,17 @@ async function handleNonStreamingResponse(
 export function handleModels(_req: Request, res: Response): void {
   const now = Math.floor(Date.now() / 1000);
   const modelIds = [
-    "claude-opus-4",
+    "claude-fable-5",
+    "claude-opus-5",
+    "claude-sonnet-5",
+    "claude-opus-4-8",
     "claude-opus-4-6",
-    "claude-sonnet-4",
-    "claude-sonnet-4-5",
+    "claude-opus-4",
     "claude-sonnet-4-6",
-    "claude-haiku-4",
+    "claude-sonnet-4-5",
+    "claude-sonnet-4",
     "claude-haiku-4-5",
+    "claude-haiku-4",
   ];
   res.json({
     object: "list",
