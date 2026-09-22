@@ -6,6 +6,7 @@ export interface ClaudeModelDefinition {
 }
 
 export const PUBLIC_CLAUDE_MODELS = [
+  { id: "claude-opus-5-5", name: "Claude Opus 5.5", reasoning: true },
   { id: "claude-fable-5-1", name: "Claude Fable 5.1", reasoning: true },
   { id: "claude-fable-5", name: "Claude Fable 5", reasoning: true },
   { id: "claude-opus-5", name: "Claude Opus 5", reasoning: true },

@@ -3,6 +3,14 @@ import assert from "node:assert/strict";
 import { extractModel } from "./adapter/openai-to-cli.js";
 
 describe("Claude model routing", () => {
+  it("advertises and preserves Opus 5.5 without changing existing aliases", async () => {
+    const { availableClaudeModels } = await import("./models.js");
+    assert.ok(availableClaudeModels(false).some((model) => model.id === "claude-opus-5-5"));
+    assert.equal(extractModel("claude-opus-5-5"), "claude-opus-5-5");
+    assert.equal(extractModel("claude-max/claude-opus-5-5"), "claude-opus-5-5");
+    assert.equal(extractModel("claude-code-cli/claude-opus-5-5"), "claude-opus-5-5");
+    assert.equal(extractModel("opus"), "claude-opus-5");
+  });
   it("preserves current model identities", () => {
     assert.equal(extractModel("claude-fable-5-1"), "claude-fable-5-1");
     assert.equal(extractModel("claude-fable-5"), "claude-fable-5");
