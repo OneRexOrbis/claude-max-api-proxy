@@ -3,14 +3,9 @@
  */
 
 import type { OpenAIChatRequest, OpenAIContentBlock } from "../types/openai.js";
+import { CLAUDE_MODEL_IDS, type ClaudeModelId } from "../models.js";
 
-export type ClaudeModel =
-  | "claude-fable-5"
-  | "claude-opus-5"
-  | "claude-sonnet-5"
-  | "opus"
-  | "sonnet"
-  | "haiku";
+export type ClaudeModel = ClaudeModelId;
 
 export interface CliInput {
   prompt: string;
@@ -19,38 +14,26 @@ export interface CliInput {
 }
 
 const MODEL_MAP: Record<string, ClaudeModel> = {
-  // Direct model names (provider prefixes like `claude-code-cli/` and `claude-max/`
-  // are stripped by extractModel before consulting this map)
-  "claude-fable-5": "claude-fable-5",
-  "claude-opus-5": "claude-opus-5",
-  "claude-sonnet-5": "claude-sonnet-5",
-  "claude-opus-4-8": "opus",
-  "claude-opus-4": "opus",
-  "claude-opus-4-6": "opus",
-  "claude-sonnet-4": "sonnet",
-  "claude-sonnet-4-5": "sonnet",
-  "claude-sonnet-4-6": "sonnet",
-  "claude-haiku-4": "haiku",
-  "claude-haiku-4-5": "haiku",
-  // Bare aliases
-  "opus": "opus",
-  "sonnet": "sonnet",
-  "haiku": "haiku",
-  "opus-max": "opus",
-  "sonnet-max": "sonnet",
+  // Compatibility aliases resolve to an explicit active model. This prevents
+  // Claude CLI aliases from changing Luna's runtime without an HQ selection.
+  "claude-opus-4-5": "claude-opus-4-5-20251101",
+  "claude-sonnet-4-5": "claude-sonnet-4-5-20250929",
+  "claude-haiku-4-5": "claude-haiku-4-5-20251001",
+  opus: "claude-opus-5",
+  sonnet: "claude-sonnet-5",
+  haiku: "claude-haiku-4-5-20251001",
+  "opus-max": "claude-opus-5",
+  "sonnet-max": "claude-sonnet-5",
 };
 
 /**
  * Extract Claude model alias from request model string
  */
 export function extractModel(model: string): ClaudeModel {
-  // Try direct lookup
-  if (MODEL_MAP[model]) {
-    return MODEL_MAP[model];
-  }
-
-  // Try stripping provider prefix
   const stripped = model.replace(/^(?:claude-code-cli|claude-max)\//, "");
+  if (CLAUDE_MODEL_IDS.has(stripped as ClaudeModelId)) {
+    return stripped as ClaudeModelId;
+  }
   if (MODEL_MAP[stripped]) {
     return MODEL_MAP[stripped];
   }
