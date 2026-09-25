@@ -7,7 +7,7 @@
 
 import { startServer, stopServer, getServer } from "./server/index.js";
 import { verifyClaude, verifyAuth } from "./subprocess/manager.js";
-import { availableClaudeModels } from "./models.js";
+import { availableClaudeModels, contextWindowFor } from "./models.js";
 
 // Provider constants
 const PROVIDER_ID = "claude-code-cli";
@@ -29,7 +29,7 @@ function buildModelDefinition(model: (typeof AVAILABLE_MODELS)[number]) {
     reasoning: model.reasoning,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 200000,
+    contextWindow: contextWindowFor(model.id),
     maxTokens: 8192,
   };
 }

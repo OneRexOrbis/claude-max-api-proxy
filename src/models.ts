@@ -5,6 +5,18 @@ export interface ClaudeModelDefinition {
   restricted?: boolean;
 }
 
+export const DEFAULT_CONTEXT_WINDOW = 200_000;
+export const LONG_CONTEXT_WINDOW = 1_000_000;
+
+/**
+ * Generation 5 models support a 1M-token context window; older models keep 200K.
+ */
+export function contextWindowFor(id: string): number {
+  return /^claude-(opus|sonnet|fable)-5(-|$)/.test(id)
+    ? LONG_CONTEXT_WINDOW
+    : DEFAULT_CONTEXT_WINDOW;
+}
+
 export const PUBLIC_CLAUDE_MODELS = [
   { id: "claude-opus-5-5", name: "Claude Opus 5.5", reasoning: true },
   { id: "claude-fable-5-1", name: "Claude Fable 5.1", reasoning: true },

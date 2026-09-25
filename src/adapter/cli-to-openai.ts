@@ -5,6 +5,7 @@
 import type { ClaudeCliAssistant, ClaudeCliResult } from "../types/claude-cli.js";
 import type { OpenAIChatResponse, OpenAIChatChunk, OpenAIToolCall } from "../types/openai.js";
 import { CLAUDE_MODEL_IDS } from "../models.js";
+import { toOpenAIUsage } from "./usage.js";
 
 /**
  * Extract text content from Claude CLI assistant message
@@ -97,12 +98,7 @@ export function cliResultToOpenai(
         finish_reason: "stop",
       },
     ],
-    usage: {
-      prompt_tokens: result.usage?.input_tokens || 0,
-      completion_tokens: result.usage?.output_tokens || 0,
-      total_tokens:
-        (result.usage?.input_tokens || 0) + (result.usage?.output_tokens || 0),
-    },
+    usage: toOpenAIUsage(result.usage),
   };
 }
 
